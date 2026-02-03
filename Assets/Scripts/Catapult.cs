@@ -2,126 +2,110 @@ using UnityEngine;
 
 public class Catapult : MonoBehaviour
 {
-    private const float MinDistance = 0.01f;
-
     [Header("References")]
     [SerializeField] private InputHandler _inputHandler;
+    [SerializeField] private SpringJoint _springJoint;
     [SerializeField] private Spawner _spawner;
+    [SerializeField] private Transform _spawnPoint;
+    [SerializeField] private Rigidbody _counterWeight;
 
     [Header("Catapult Settings")]
-    [SerializeField] private Transform _spawnPoint;
-    [SerializeField] private Rigidbody _rigidbodyWeight;
-    [SerializeField] private float _returnSpeed = 5f;
-    [SerializeField] private float _throwDelay = 5f;
+    [SerializeField] private float _throwForce = 1000f;
+    [SerializeField] private float _throwDelay = 6f;
 
     private Projectile _currentProjectile;
-    private Vector3 _armRestPosition;
-    private Quaternion _armRestRotation;
-    private float _originalMass;
-
     private bool _isLoaded = true;
-    private bool _isReturning = false;
     private bool _canReturn = false;
 
     private void Awake()
     {
-        _inputHandler.FKeyPressed += OnHandleFKey;
-        _inputHandler.FKeyPressed += OnHandleRKey;
+        if (_inputHandler != null)
+        {
+            _inputHandler.FKeyPressed += OnHandleFKey;
+            _inputHandler.RKeyPressed += OnHandleRKey;
+        }
 
-        _rigidbodyWeight.isKinematic = true;
-        _originalMass = _rigidbodyWeight.mass;
-
-        _armRestPosition = transform.position;
-        _armRestRotation = transform.rotation;
+        _springJoint.spring = _throwForce;
 
         SpawnProjectile();
     }
 
-    private void FixedUpdate()
+    private void OnDestroy()
     {
-        if (_isReturning)
-            ReturnArm();
+        if (_inputHandler != null)
+        {
+            _inputHandler.FKeyPressed -= OnHandleFKey;
+            _inputHandler.RKeyPressed -= OnHandleRKey;
+        }
     }
 
     private void OnHandleFKey()
     {
-        if (_isLoaded && _isReturning == false)
+        if (_isLoaded)
             ThrowProjectile();
-        else if (_canReturn && _isReturning == false)
-            StartArmReturn();
     }
 
     private void OnHandleRKey()
     {
-        _rigidbodyWeight.isKinematic = false;
+        ReturnCatapult();
     }
 
     private void SpawnProjectile()
     {
-        _currentProjectile = _spawner.SpawnProjectile(_spawnPoint.position, _spawnPoint.rotation);
-        _currentProjectile.transform.SetParent(_spawnPoint);
+        if (_spawner == null || _spawnPoint == null) 
+            return;
 
-        _isLoaded = true;
+        _currentProjectile = _spawner.SpawnProjectile(_spawnPoint.position, _spawnPoint.rotation);
+
+        if (_currentProjectile != null)
+        {
+            _currentProjectile.transform.SetParent(_spawnPoint);
+            _isLoaded = true;
+        }
     }
 
     private void ThrowProjectile()
     {
-        _isLoaded = true;
+        if (_currentProjectile == null) 
+            return;
+
+        _isLoaded = false;
+
+        if (_counterWeight != null)
+            _counterWeight.isKinematic = false;
+
         _currentProjectile.transform.SetParent(null);
+        _springJoint.spring = 0f;
 
-        Invoke(nameof(EnableReturn), _throwDelay);
+        Debug.Log("Катапульта выстрелила!");
+
+        Invoke(nameof(AllowReturn), _throwDelay);
     }
 
-    private void StartArmReturn()
-    {
-        _isReturning = true;
-        _canReturn = false;
-
-        _rigidbodyWeight.isKinematic = true;
-        _rigidbodyWeight.mass = 0.1f;
-    }
-
-    private void EnableReturn()
+    private void AllowReturn()
     {
         _canReturn = true;
-        Debug.Log("Можно вернуть руку катапульты (нажмите F)");
-
-        Invoke(nameof(EnableFiring), _throwDelay);
+        Debug.Log("Нажмите R для возврата катапульты");
     }
 
-    private void EnableFiring()
+    private void ReturnCatapult()
     {
-        if (_isReturning == false)
-            SpawnProjectile();
-        else
-            Invoke(nameof(EnableFiring), 1f);
+        if (_canReturn == false || _counterWeight == null)
+            return;
+
+        _counterWeight.isKinematic = true;
+        _springJoint.spring = _throwForce;
+
+        Invoke(nameof(EnableCounterweightPhysics), 0.1f);
+
+        _canReturn = false;
+
+        Invoke(nameof(SpawnProjectile), _throwDelay);
     }
 
-    private void ReturnArm()
+    private void EnableCounterweightPhysics()
     {
-        transform.position = Vector3.Lerp(transform.position, _armRestPosition, _returnSpeed * Time.deltaTime);
-        transform.rotation = Quaternion.Slerp(transform.rotation, _armRestRotation, _returnSpeed * Time.deltaTime);
-
-        float distance = Vector3.Distance(transform.position, _armRestPosition);
-        float angle = Quaternion.Angle(transform.rotation, _armRestRotation);
-
-        if (distance < MinDistance && angle < 1f)
-        {
-            _isReturning = false;
-
-            transform.position = _armRestPosition;
-            transform.rotation = _armRestRotation;
-
-            _rigidbodyWeight.isKinematic = true;
-            _rigidbodyWeight.mass = _originalMass;
-
-            SpawnProjectile();
-        }
-    }
-
-    private void OnDestroy()
-    {
-        _inputHandler.FKeyPressed -= OnHandleFKey;
-        _inputHandler.FKeyPressed -= OnHandleRKey;
+        if (_counterWeight != null)
+            _counterWeight.isKinematic = false;
     }
 }

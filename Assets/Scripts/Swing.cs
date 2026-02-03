@@ -4,7 +4,7 @@ public class Swing : MonoBehaviour
 {
     [SerializeField] private InputHandler _inputHandler;
     [SerializeField] private float _force = 500f;
-    
+
     private HingeJoint _hingeJoint;
     private Rigidbody _rigidbody;
 
@@ -16,24 +16,21 @@ public class Swing : MonoBehaviour
         _inputHandler.SpaceKeyPressed += OnHandleSpaceKey;
     }
 
+    private void OnDestroy()
+    {
+        _inputHandler.SpaceKeyPressed -= OnHandleSpaceKey;
+    }
+
     private void OnHandleSpaceKey()
     {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            _hingeJoint.useSpring = false;
-            _rigidbody.AddForce(Vector3.forward * _force, ForceMode.Impulse);
+        _hingeJoint.useSpring = false;
+        _rigidbody.AddForce(Vector3.forward * _force, ForceMode.Impulse);
 
-            Invoke("EnableSpring", 0.2f);
-        }
+        Invoke("EnableSpring", 0.2f);
     }
 
     private void EnableSpring()
     {
         _hingeJoint.useSpring = true;
-    }
-
-    private void OnDestroy()
-    {
-        _inputHandler.SpaceKeyPressed -= OnHandleSpaceKey;
     }
 }

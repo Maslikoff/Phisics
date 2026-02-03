@@ -2,6 +2,15 @@ using UnityEngine;
 
 public class ProjectilePool : ObjectPool<Projectile>
 {
+    private void OnDestroy()
+    {
+        foreach (var projectile in _activeObjects)
+        {
+            if (projectile != null)
+                projectile.ReturnToPoolRequested -= OnHandleProjectileReturn;
+        }
+    }
+
     public Projectile GetProjectileAtPosition(Vector3 position, Quaternion rotation)
     {
         Projectile projectile = GetObject();
@@ -29,14 +38,5 @@ public class ProjectilePool : ObjectPool<Projectile>
         obj.ReturnToPoolRequested -= OnHandleProjectileReturn;
 
         base.ReturnObject(obj);
-    }
-
-    private void OnDestroy()
-    {
-        foreach (var projectile in _activeObjects)
-        {
-            if (projectile != null)
-                projectile.ReturnToPoolRequested -= OnHandleProjectileReturn;
-        }
     }
 }
